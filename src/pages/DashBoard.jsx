@@ -1,4 +1,3 @@
-// Dashboard.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -9,34 +8,54 @@ export default function Dashboard() {
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ title: "", description: "", dueDate: "" });
+  const [editForm, setEditForm] = useState({ 
+    title: "", 
+    description: "", 
+    dueDate: "" 
+  });
+  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // Create an axios instance with auth header
   const api = axios.create({
     baseURL: "http://localhost:5000/api",
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  // Fetch all tasks
-  const fetchTasks = async () => {
-    try {
-      const { data } = await api.get("/tasks");
-      setTasks(data);
-    } catch (error) {
+  api.interceptors.response.use(
+    response => response,
+    error => {
       if (error.response?.status === 401 || error.response?.status === 403) {
-        // If token is invalid/expired, logout and redirect
         localStorage.removeItem("token");
         navigate("/");
-        return;
       }
+      return Promise.reject(error);
+    }
+  );
+
+  const fetchTasks = async () => {
+    try {
+      const { data } = await api.get("/tasks", {
+        params: { search: searchTerm }
+      });
+      setTasks(data);
+    } catch (error) {
       console.error("Fetch tasks error:", error);
-      alert("Failed to load tasks. Please try again.");
     }
   };
 
-  // Add new task
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      fetchTasks();
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
   const handleAddTask = async (e) => {
     e.preventDefault();
     try {
@@ -46,34 +65,20 @@ export default function Dashboard() {
       setDueDate("");
       fetchTasks();
     } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
       console.error("Add task error:", error);
-      alert(error.response?.data?.error || "Failed to add task. Please try again.");
     }
   };
 
-  // Delete task
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this task?")) return;
     try {
       await api.delete(`/tasks/${id}`);
       fetchTasks();
     } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
       console.error("Delete error:", error);
-      alert("Failed to delete task");
     }
   };
 
-  // Start editing
   const startEdit = (task) => {
     setEditingId(task._id);
     setEditForm({
@@ -83,64 +88,49 @@ export default function Dashboard() {
     });
   };
 
-  // Cancel editing
   const cancelEdit = () => {
     setEditingId(null);
     setEditForm({ title: "", description: "", dueDate: "" });
   };
 
-  // Submit edit
   const submitEdit = async (id) => {
     try {
       await api.put(`/tasks/${id}`, editForm);
       cancelEdit();
       fetchTasks();
     } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
       console.error("Update error:", error);
-      alert(error.response?.data?.error || "Failed to update task");
     }
   };
 
-  // Change status
   const handleStatusChange = async (id, status) => {
     try {
       await api.put(`/tasks/${id}`, { status });
       fetchTasks();
     } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
       console.error("Status change error:", error);
-      alert("Failed to update status");
     }
   };
 
-  // Logout handler
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/");
   };
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
+    <div>
+      <div>
         <h2>Your Tasks</h2>
-        <button onClick={handleLogout} className="logout-btn">Logout</button>
+        <input
+          type="text"
+          placeholder="Search tasks..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <button onClick={handleLogout}>Logout</button>
       </div>
 
-      {/* Add Task Form */}
-      <form onSubmit={handleAddTask} className="add-task-form">
+      <form onSubmit={handleAddTask}>
         <input
           placeholder="Task Title"
           value={title}
@@ -160,31 +150,30 @@ export default function Dashboard() {
         <button type="submit">Add Task</button>
       </form>
 
-      {/* Tasks List */}
-      <div className="tasks-list">
+      <div>
         {tasks.length === 0 ? (
           <p>No tasks found</p>
         ) : (
           tasks.map((task) => (
-            <div key={task._id} className="task-item">
+            <div key={task._id}>
               {editingId === task._id ? (
-                <div className="edit-mode">
+                <div>
                   <input
                     value={editForm.title}
-                    onChange={(e) =>
+                    onChange={(e) => 
                       setEditForm({ ...editForm, title: e.target.value })
                     }
                   />
                   <textarea
                     value={editForm.description}
-                    onChange={(e) =>
+                    onChange={(e) => 
                       setEditForm({ ...editForm, description: e.target.value })
                     }
                   />
                   <input
                     type="date"
                     value={editForm.dueDate}
-                    onChange={(e) =>
+                    onChange={(e) => 
                       setEditForm({ ...editForm, dueDate: e.target.value })
                     }
                   />
@@ -192,17 +181,13 @@ export default function Dashboard() {
                   <button onClick={cancelEdit}>Cancel</button>
                 </div>
               ) : (
-                <div className="view-mode">
+                <div>
                   <h3>{task.title}</h3>
                   <p>{task.description}</p>
-                  <div>
-                    <strong>Due:</strong> {task.dueDate?.slice(0, 10) || "N/A"}
-                  </div>
+                  <div>Due: {task.dueDate?.slice(0, 10) || "N/A"}</div>
                   <select
                     value={task.status}
-                    onChange={(e) =>
-                      handleStatusChange(task._id, e.target.value)
-                    }
+                    onChange={(e) => handleStatusChange(task._id, e.target.value)}
                   >
                     <option value="pending">Pending</option>
                     <option value="in-progress">In Progress</option>
