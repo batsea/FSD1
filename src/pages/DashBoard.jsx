@@ -44,13 +44,7 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      fetchTasks();
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm]);
+  
 
   useEffect(() => {
     fetchTasks();
