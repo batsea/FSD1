@@ -25,7 +25,8 @@ export default function Dashboard() {
       const { data } = await api.get("/tasks");
       setTasks(data);
     } catch (error) {
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        // If token is invalid/expired, logout and redirect
         localStorage.removeItem("token");
         navigate("/");
         return;
@@ -45,6 +46,11 @@ export default function Dashboard() {
       setDueDate("");
       fetchTasks();
     } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        navigate("/");
+        return;
+      }
       console.error("Add task error:", error);
       alert(error.response?.data?.error || "Failed to add task. Please try again.");
     }
@@ -57,6 +63,11 @@ export default function Dashboard() {
       await api.delete(`/tasks/${id}`);
       fetchTasks();
     } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        navigate("/");
+        return;
+      }
       console.error("Delete error:", error);
       alert("Failed to delete task");
     }
@@ -85,6 +96,11 @@ export default function Dashboard() {
       cancelEdit();
       fetchTasks();
     } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        navigate("/");
+        return;
+      }
       console.error("Update error:", error);
       alert(error.response?.data?.error || "Failed to update task");
     }
@@ -96,22 +112,32 @@ export default function Dashboard() {
       await api.put(`/tasks/${id}`, { status });
       fetchTasks();
     } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        navigate("/");
+        return;
+      }
       console.error("Status change error:", error);
       alert("Failed to update status");
     }
   };
 
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
+  };
+
   useEffect(() => {
-    if (!token) {
-      navigate("/");
-    } else {
-      fetchTasks();
-    }
+    fetchTasks();
   }, []);
 
   return (
     <div className="dashboard">
-      <h2>Your Tasks</h2>
+      <div className="dashboard-header">
+        <h2>Your Tasks</h2>
+        <button onClick={handleLogout} className="logout-btn">Logout</button>
+      </div>
 
       {/* Add Task Form */}
       <form onSubmit={handleAddTask} className="add-task-form">
